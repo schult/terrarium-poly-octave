@@ -1,0 +1,9 @@
+[submodule "lib/q"]
+	path = lib/q
+	url = https://github.com/schult/q.git
+[submodule "lib/libDaisy"]
+	path = lib/libDaisy
+	url = https://github.com/schult/libDaisy.git
+[submodule "lib/gcem"]
+	path = lib/gcem
+	url = https://github.com/kthohr/gcem.git
