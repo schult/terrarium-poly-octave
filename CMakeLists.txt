@@ -9,6 +9,7 @@ set(FIRMWARE_SOURCES
     util/Led.cpp
     util/LinearRamp.h
     util/Mapping.h
+    util/Multirate.h
     util/Terrarium.h
     util/Terrarium.cpp
 )
