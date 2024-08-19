@@ -5,6 +5,8 @@ set(FIRMWARE_NAME TerrariumPolyOctave)
 set(FIRMWARE_SOURCES
     main.cpp
     syscalls.c
+    util/BandShifter.h
+    util/EffectState.h
     util/Led.h
     util/Led.cpp
     util/LinearRamp.h
