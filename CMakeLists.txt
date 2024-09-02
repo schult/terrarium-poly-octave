@@ -25,8 +25,11 @@ add_subdirectory(lib/q)
 
 add_subdirectory(lib/gcem)
 
+set(CMSISCORE "${CMAKE_SOURCE_DIR}/lib/libDaisy/Drivers/CMSIS_5/CMSIS/Core")
+add_subdirectory(lib/libDaisy/Drivers/CMSIS-DSP)
+
 target_include_directories(${FIRMWARE_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(${FIRMWARE_NAME} PUBLIC libq gcem)
+target_link_libraries(${FIRMWARE_NAME} PUBLIC libq gcem CMSISDSP)
 
 set_target_properties(${FIRMWARE_NAME} PROPERTIES
     CXX_STANDARD 20

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <bit>
 #include <cmath>
 #include <complex>
@@ -24,7 +25,7 @@ constexpr float bandwidth(const int n)
     const float f2 = centerFreq(n+1);
     const float a = (f2 - f1);
     const float b = (f1 - f0);
-    return (4/3.0f) * (a*b) / (a+b);
+    return 2.0f * (a*b) / (a+b);
 }
 
 //=============================================================================
@@ -41,8 +42,6 @@ public:
     BandShifter() = default;
 
     BandShifter(float center, float sample_rate, float bw)
-        : _down1_w(center * -0.5f * (2 * pi_f / sample_rate))
-        , _down2_w(center * -0.75f * (2 * pi_f / sample_rate))
     {
         constexpr auto pi_d = std::numbers::pi_v<double>;
         constexpr auto j = std::complex<double>(0, 1);
@@ -73,9 +72,16 @@ public:
 
     void update(float sample)
     {
+        const auto prev_y = _y;
         _y = _s2 + _d0*sample;
         _s2 = _s1 + _d1*sample - _c1*_y;
         _s1 = _d2*sample - _c2*_y;
+
+        if ((_y.real() < 0) &&
+            (std::signbit(_y.imag()) != std::signbit(prev_y.imag())))
+        {
+            _down1_sign = -_down1_sign;
+        }
     }
 
     float up1() const {
@@ -84,24 +90,37 @@ public:
         return (a*a - b*b) * invSqrt(a*a + b*b);
     }
 
-    float down1(float idx) const {
-        // (_y * std::exp(j * _down1_w * idx)).real()
-        const auto x = _down1_w * idx;
+    float down1() {
         const auto a = _y.real();
         const auto b = _y.imag();
-        const auto c = fastercosfull(x);
-        const auto d = fastersinfull(x);
-        return (a*c) - (b*d);
+        const auto b_sign = (b < 0) ? -1.0f : 1.0f;
+
+        const auto x = 0.5f * a * invSqrt(a*a + b*b);
+        const auto c = sqrt(0.5f + x);
+        const auto d = b_sign * sqrt(0.5f - x);
+
+        const auto prev_down1 = _down1;
+        _down1 = _down1_sign * std::complex<float>((a*c + b*d), (b*c - a*d));
+
+        if ((_down1.real() < 0) &&
+            (std::signbit(_down1.imag()) != std::signbit(prev_down1.imag())))
+        {
+            _down2_sign = -_down2_sign;
+        }
+
+        return _down1.real();
     }
 
-    float down2(float idx) const {
-        // (_y * std::exp(j * _down2_w * idx)).real()
-        const auto x = _down2_w * idx;
-        const auto a = _y.real();
-        const auto b = _y.imag();
-        const auto c = fastercosfull(x);
-        const auto d = fastersinfull(x);
-        return (a*c) - (b*d);
+    float down2() const {
+        const auto a = _down1.real();
+        const auto b = _down1.imag();
+        const auto b_sign = (b < 0) ? -1.0f : 1.0f;
+
+        const auto x = 0.5f * a * invSqrt(a*a + b*b);
+        const auto c = sqrt(0.5f + x);
+        const auto d = b_sign * sqrt(0.5f - x);
+
+        return _down2_sign * (a*c + b*d);
     }
 
 private:
@@ -114,10 +133,12 @@ private:
         return y * (0.703952253f * (2.38924456f - (x * y * y)));
     }
 
-    static constexpr auto pi_f = std::numbers::pi_v<float>;
+    static constexpr float sqrt(float x)
+    {
+        return invSqrt(x) * x;
+    }
 
-    const float _down1_w;
-    const float _down2_w;
+    static constexpr auto pi_f = std::numbers::pi_v<float>;
 
     float _d0 = 0;
     std::complex<float> _d1;
@@ -129,4 +150,8 @@ private:
     std::complex<float> _s2;
 
     std::complex<float> _y;
+    std::complex<float> _down1;
+
+    float _down1_sign = 1.0;
+    float _down2_sign = 1.0;
 };

@@ -24,8 +24,6 @@ void processAudioBlock(
     static Decimator decimate;
     static Interpolator interpolate;
 
-    static unsigned int idx = 0;
-
     const auto& s = interface_state;
 
     constexpr size_t chunk_size = 4;
@@ -39,10 +37,9 @@ void processAudioBlock(
         {
             shifter.update(sample);
             mix += s.up1Level() * shifter.up1();
-            mix += s.down1Level() * shifter.down1((float)idx);
-            mix += s.down2Level() * shifter.down2((float)idx);
+            mix += s.down1Level() * shifter.down1();
+            mix += s.down2Level() * shifter.down2();
         }
-        ++idx;
 
         auto out_chunk = interpolate(mix);
         for (size_t j = 0; j < out_chunk.size(); ++j)
@@ -75,13 +72,12 @@ int main()
 
 
     const auto sample_rate = terrarium.seed.AudioSampleRate() / 4;
-    for (int i = 0; i < 80; ++i)
+    for (int i = 0; i < 78; ++i)
     {
         const auto center = centerFreq(i);
         const auto bw = bandwidth(i);
         shifters.emplace_back(BandShifter(center, sample_rate, bw));
     }
-
 
     terrarium.seed.StartAudio(processAudioBlock);
 
