@@ -122,7 +122,7 @@ private:
     {
         const auto a = _y.real();
         const auto b = _y.imag();
-        _up1 = (a*a - b*b) * invSqrt(a*a + b*b);
+        _up1 = (a*a - b*b) * fastInvSqrt(a*a + b*b);
     }
 
     void update_down1()
@@ -131,9 +131,9 @@ private:
         const auto b = _y.imag();
         const auto b_sign = (b < 0) ? -1.0f : 1.0f;
 
-        const auto x = 0.5f * a * invSqrt(a*a + b*b);
-        const auto c = sqrt(0.5f + x);
-        const auto d = b_sign * sqrt(0.5f - x);
+        const auto x = 0.5f * a * fastInvSqrt(a*a + b*b);
+        const auto c = fastSqrt(0.5f + x);
+        const auto d = b_sign * fastSqrt(0.5f - x);
 
         const auto prev_down1 = _down1;
         _down1 = _down1_sign * std::complex<float>((a*c + b*d), (b*c - a*d));
@@ -151,15 +151,15 @@ private:
         const auto b = _down1.imag();
         const auto b_sign = (b < 0) ? -1.0f : 1.0f;
 
-        const auto x = 0.5f * a * invSqrt(a*a + b*b);
-        const auto c = sqrt(0.5f + x);
-        const auto d = b_sign * sqrt(0.5f - x);
+        const auto x = 0.5f * a * fastInvSqrt(a*a + b*b);
+        const auto c = fastSqrt(0.5f + x);
+        const auto d = b_sign * fastSqrt(0.5f - x);
 
         _down2 = _down2_sign * (a*c + b*d);
     }
 
     // https://en.wikipedia.org/wiki/Fast_inverse_square_root
-    static constexpr float invSqrt(float x) noexcept
+    static constexpr float fastInvSqrt(float x) noexcept
     {
         static_assert(std::numeric_limits<float>::is_iec559);
         float const y = std::bit_cast<float>(
@@ -167,9 +167,9 @@ private:
         return y * (0.703952253f * (2.38924456f - (x * y * y)));
     }
 
-    static constexpr float sqrt(float x)
+    static constexpr float fastSqrt(float x)
     {
-        return invSqrt(x) * x;
+        return fastInvSqrt(x) * x;
     }
 
     float _d0 = 0;
