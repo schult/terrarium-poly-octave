@@ -29,13 +29,6 @@ constexpr float bandwidth(const int n)
 }
 
 //=============================================================================
-// Prototype filter is LPF from "Cookbook formulae for audio EQ biquad filter
-// coefficients", a.k.a. "Audio EQ Cookbook", by Robert Bristow-Johnson
-// https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
-//
-// Transformed as described in Section 3.1 of "Complex Band-Pass Filters for
-// Analytic Signal Generation and Their Application" by Andrew J. Noga
-// https://apps.dtic.mil/sti/tr/pdf/ADA395963.pdf
 class BandShifter
 {
 public:
@@ -43,17 +36,17 @@ public:
 
     BandShifter(float center, float sample_rate, float bw)
     {
-        constexpr auto pi_d = std::numbers::pi_v<double>;
+        constexpr auto pi = std::numbers::pi_v<double>;
         constexpr auto j = std::complex<double>(0, 1);
 
-        const auto w0 = pi_d * bw / sample_rate;
+        const auto w0 = pi * bw / sample_rate;
         const auto cos_w0 = std::cos(w0);
         const auto sin_w0 = std::sin(w0);
         const auto sqrt_2 = std::sqrt(2.0);
         const auto a0 = (1 + sqrt_2 * sin_w0 / 2);
         const auto g = (1 - cos_w0) / (2 * a0);
 
-        const auto w1 = 2 * pi_d * center / sample_rate;
+        const auto w1 = 2 * pi * center / sample_rate;
         const auto e1 = std::exp(j * w1);
         const auto e2 = std::exp(j * w1 * 2.0);
 
@@ -72,6 +65,35 @@ public:
 
     void update(float sample)
     {
+        update_filter(sample);
+        update_up1();
+        update_down1();
+        update_down2();
+    }
+
+    float up1() const {
+        return _up1;
+    }
+
+    float down1() {
+        return _down1.real();
+    }
+
+    float down2() const {
+        return _down2;
+    }
+
+private:
+    // Prototype filter is LPF from "Cookbook formulae for audio EQ biquad
+    // filter coefficients", a.k.a. "Audio EQ Cookbook",
+    // by Robert Bristow-Johnson
+    // https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
+    //
+    // Transformed as described in Section 3.1 of "Complex Band-Pass Filters
+    // for Analytic Signal Generation and Their Application" by Andrew J. Noga
+    // https://apps.dtic.mil/sti/tr/pdf/ADA395963.pdf
+    void update_filter(float sample)
+    {
         const auto prev_y = _y;
         _y = _s2 + _d0*sample;
         _s2 = _s1 + _d1*sample - _c1*_y;
@@ -84,13 +106,27 @@ public:
         }
     }
 
-    float up1() const {
+    // Octave shifts are performed via phase scaling described in "Real-Time
+    // Polyphonic Octave Doubling for the Guitar" by Etienne Thuillier
+    // https://core.ac.uk/download/pdf/80719011.pdf
+    //
+    // in = complex input signal
+    // out = scaled complex output signal
+    // g = scaling factor
+    //
+    // out = in * (in / |in|)^(g - 1)
+    //
+    // Note that for octave down (g = 1/2), it is necessary to detect phase
+    // transitions in order to set the sign of the output signal.
+    void update_up1()
+    {
         const auto a = _y.real();
         const auto b = _y.imag();
-        return (a*a - b*b) * invSqrt(a*a + b*b);
+        _up1 = (a*a - b*b) * invSqrt(a*a + b*b);
     }
 
-    float down1() {
+    void update_down1()
+    {
         const auto a = _y.real();
         const auto b = _y.imag();
         const auto b_sign = (b < 0) ? -1.0f : 1.0f;
@@ -107,11 +143,10 @@ public:
         {
             _down2_sign = -_down2_sign;
         }
-
-        return _down1.real();
     }
 
-    float down2() const {
+    void update_down2()
+    {
         const auto a = _down1.real();
         const auto b = _down1.imag();
         const auto b_sign = (b < 0) ? -1.0f : 1.0f;
@@ -120,10 +155,9 @@ public:
         const auto c = sqrt(0.5f + x);
         const auto d = b_sign * sqrt(0.5f - x);
 
-        return _down2_sign * (a*c + b*d);
+        _down2 = _down2_sign * (a*c + b*d);
     }
 
-private:
     // https://en.wikipedia.org/wiki/Fast_inverse_square_root
     static constexpr float invSqrt(float x) noexcept
     {
@@ -138,8 +172,6 @@ private:
         return invSqrt(x) * x;
     }
 
-    static constexpr auto pi_f = std::numbers::pi_v<float>;
-
     float _d0 = 0;
     std::complex<float> _d1;
     std::complex<float> _d2;
@@ -150,8 +182,10 @@ private:
     std::complex<float> _s2;
 
     std::complex<float> _y;
+    float _up1 = 0;
     std::complex<float> _down1;
+    float _down2 = 0;
 
-    float _down1_sign = 1.0;
-    float _down2_sign = 1.0;
+    float _down1_sign = 1;
+    float _down2_sign = 1;
 };
