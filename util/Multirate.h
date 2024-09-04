@@ -5,11 +5,13 @@
 
 #include <q/utility/ring_buffer.hpp>
 
+constexpr size_t resample_factor = 4;
+
 //=============================================================================
 class Decimator
 {
 public:
-    float operator()(std::span<const float, 4> s)
+    float operator()(std::span<const float, resample_factor> s)
     {
         buffer1.push(s[0]);
         buffer1.push(s[1]);
@@ -63,9 +65,9 @@ private:
 class Interpolator
 {
 public:
-    std::array<float, 4> operator()(float s)
+    std::array<float, resample_factor> operator()(float s)
     {
-        std::array<float, 4> output;
+        std::array<float, resample_factor> output;
 
         buffer1.push(s);
 

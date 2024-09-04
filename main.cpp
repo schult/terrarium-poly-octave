@@ -26,10 +26,10 @@ void processAudioBlock(
 
     const auto& s = interface_state;
 
-    constexpr size_t chunk_size = 4;
-    for (size_t i = 0; i <= (size - chunk_size); i += chunk_size)
+    for (size_t i = 0; i <= (size - resample_factor); i += resample_factor)
     {
-        std::span<const float, chunk_size> in_chunk(&(in[0][i]), chunk_size);
+        std::span<const float, resample_factor> in_chunk(
+            &(in[0][i]), resample_factor);
         const auto sample = decimate(in_chunk);
 
         float mix = 0;
@@ -59,7 +59,7 @@ int main()
     terrarium.Init(true);
     // These settings are expected by Decimator/Interpolator
     assert(terrarium.seed.AudioSampleRate() == 48000);
-    assert(terrarium.seed.AudioBlockSize() % 4 == 0);
+    assert(terrarium.seed.AudioBlockSize() % resample_factor == 0);
 
     auto& knob_dry = terrarium.knobs[0];
     auto& knob_up1 = terrarium.knobs[1];
@@ -71,7 +71,7 @@ int main()
     auto& led_enable = terrarium.leds[0];
 
 
-    const auto sample_rate = terrarium.seed.AudioSampleRate() / 4;
+    const auto sample_rate = terrarium.seed.AudioSampleRate() / resample_factor;
     for (int i = 0; i < 78; ++i)
     {
         const auto center = centerFreq(i);
