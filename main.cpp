@@ -72,7 +72,7 @@ int main()
 
 
     const auto sample_rate = terrarium.seed.AudioSampleRate() / resample_factor;
-    for (int i = 0; i < 78; ++i)
+    for (int i = 0; i < 80; ++i)
     {
         const auto center = centerFreq(i);
         const auto bw = bandwidth(i);
