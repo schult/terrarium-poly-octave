@@ -1,6 +1,7 @@
 #include <cassert>
 
 #include <q/support/literals.hpp>
+#include <q/fx/biquad.hpp>
 
 #include <util/BandShifter.h>
 #include <util/EffectState.h>
@@ -21,8 +22,12 @@ void processAudioBlock(
     daisy::AudioHandle::OutputBuffer out,
     size_t size)
 {
+    static const auto sample_rate = terrarium.seed.AudioSampleRate();
+
     static Decimator decimate;
     static Interpolator interpolate;
+    static q::highshelf eq1(-11, 140_Hz, sample_rate);
+    static q::lowshelf eq2(5, 160_Hz, sample_rate);
 
     const auto& s = interface_state;
 
@@ -44,6 +49,8 @@ void processAudioBlock(
         auto out_chunk = interpolate(mix);
         for (size_t j = 0; j < out_chunk.size(); ++j)
         {
+            out_chunk[j] = eq2(eq1(out_chunk[j]));
+
             const auto dry_signal = in[0][i+j];
             out_chunk[j] += s.dryLevel() * dry_signal;
 
