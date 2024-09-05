@@ -62,9 +62,9 @@ int main()
     assert(terrarium.seed.AudioBlockSize() % resample_factor == 0);
 
     auto& knob_dry = terrarium.knobs[0];
-    auto& knob_up1 = terrarium.knobs[1];
-    auto& knob_down1 = terrarium.knobs[3];
-    auto& knob_down2 = terrarium.knobs[4];
+    auto& knob_down2 = terrarium.knobs[3];
+    auto& knob_down1 = terrarium.knobs[4];
+    auto& knob_up1 = terrarium.knobs[5];
 
     auto& stomp_bypass = terrarium.stomps[0];
 
