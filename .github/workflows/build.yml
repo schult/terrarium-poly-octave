@@ -24,10 +24,13 @@ jobs:
           submodules: recursive
 
       - name: Install Arm Toolchain
-        run: sudo apt-get -y install gcc-arm-none-eabi
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.3.Rel1'
+          path-env-var: ARM_NONE_EABI_GCC_PATH
 
       - name: Configure CMake
-        run: cmake -DCMAKE_TOOLCHAIN_FILE=lib/libDaisy/cmake/toolchains/stm32h750xx.cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -B build
+        run: cmake -DTOOLCHAIN_PREFIX="$(dirname "${ARM_NONE_EABI_GCC_PATH}")" -DCMAKE_TOOLCHAIN_FILE=lib/libDaisy/cmake/toolchains/stm32h750xx.cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -B build
 
       - name: Build
         run: cmake --build build --config ${{env.BUILD_TYPE}}
