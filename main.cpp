@@ -3,9 +3,9 @@
 #include <q/support/literals.hpp>
 #include <q/fx/biquad.hpp>
 
-#include <util/BandShifter.h>
 #include <util/EffectState.h>
 #include <util/Multirate.h>
+#include <util/OctaveGenerator.h>
 #include <util/Terrarium.h>
 
 namespace q = cycfi::q;
@@ -13,7 +13,6 @@ using namespace q::literals;
 
 Terrarium terrarium;
 EffectState interface_state;
-std::vector<BandShifter> shifters;
 bool enable_effect = false;
 
 //=============================================================================
@@ -26,6 +25,7 @@ void processAudioBlock(
 
     static Decimator decimate;
     static Interpolator interpolate;
+    static OctaveGenerator octave(sample_rate / resample_factor);
     static q::highshelf eq1(-11, 140_Hz, sample_rate);
     static q::lowshelf eq2(5, 160_Hz, sample_rate);
 
@@ -37,24 +37,21 @@ void processAudioBlock(
             &(in[0][i]), resample_factor);
         const auto sample = decimate(in_chunk);
 
-        float mix = 0;
-        for (auto& shifter : shifters)
-        {
-            shifter.update(sample);
-            mix += s.up1Level() * shifter.up1();
-            mix += s.down1Level() * shifter.down1();
-            mix += s.down2Level() * shifter.down2();
-        }
+        float octave_mix = 0;
+        octave.update(sample);
+        octave_mix += s.up1Level() * octave.up1();
+        octave_mix += s.down1Level() * octave.down1();
+        octave_mix += s.down2Level() * octave.down2();
 
-        auto out_chunk = interpolate(mix);
+        auto out_chunk = interpolate(octave_mix);
         for (size_t j = 0; j < out_chunk.size(); ++j)
         {
-            out_chunk[j] = eq2(eq1(out_chunk[j]));
+            float mix = eq2(eq1(out_chunk[j]));
 
             const auto dry_signal = in[0][i+j];
-            out_chunk[j] += s.dryLevel() * dry_signal;
+            mix += s.dryLevel() * dry_signal;
 
-            out[0][i+j] = enable_effect ? out_chunk[j] : dry_signal;
+            out[0][i+j] = enable_effect ? mix : dry_signal;
             out[1][i+j] = 0;
         }
     }
@@ -77,14 +74,6 @@ int main()
 
     auto& led_enable = terrarium.leds[0];
 
-
-    const auto sample_rate = terrarium.seed.AudioSampleRate() / resample_factor;
-    for (int i = 0; i < 80; ++i)
-    {
-        const auto center = centerFreq(i);
-        const auto bw = bandwidth(i);
-        shifters.emplace_back(BandShifter(center, sample_rate, bw));
-    }
 
     terrarium.seed.StartAudio(processAudioBlock);
 

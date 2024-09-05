@@ -1,32 +1,10 @@
 #pragma once
 
-#include <algorithm>
-#include <bit>
 #include <cmath>
 #include <complex>
-#include <cstdint>
-#include <limits>
 #include <numbers>
 
-#include <gcem.hpp>
-#include <q/detail/fast_math.hpp>
-
-//=============================================================================
-constexpr float centerFreq(const int n)
-{
-    return 480 * gcem::pow(2.0f, (0.027f * n)) - 420;
-}
-
-//=============================================================================
-constexpr float bandwidth(const int n)
-{
-    const float f0 = centerFreq(n-1);
-    const float f1 = centerFreq(n);
-    const float f2 = centerFreq(n+1);
-    const float a = (f2 - f1);
-    const float b = (f1 - f0);
-    return 2.0f * (a*b) / (a+b);
-}
+#include <util/FastSqrt.h>
 
 //=============================================================================
 class BandShifter
@@ -92,6 +70,7 @@ private:
     // Transformed as described in Section 3.1 of "Complex Band-Pass Filters
     // for Analytic Signal Generation and Their Application" by Andrew J. Noga
     // https://apps.dtic.mil/sti/tr/pdf/ADA395963.pdf
+
     void update_filter(float sample)
     {
         const auto prev_y = _y;
@@ -118,6 +97,7 @@ private:
     //
     // Note that for octave down (g = 1/2), it is necessary to detect phase
     // transitions in order to set the sign of the output signal.
+
     void update_up1()
     {
         const auto a = _y.real();
@@ -156,20 +136,6 @@ private:
         const auto d = b_sign * fastSqrt(0.5f - x);
 
         _down2 = _down2_sign * (a*c + b*d);
-    }
-
-    // https://en.wikipedia.org/wiki/Fast_inverse_square_root
-    static constexpr float fastInvSqrt(float x) noexcept
-    {
-        static_assert(std::numeric_limits<float>::is_iec559);
-        float const y = std::bit_cast<float>(
-                0x5F1FFFF9 - (std::bit_cast<std::uint32_t>(x) >> 1));
-        return y * (0.703952253f * (2.38924456f - (x * y * y)));
-    }
-
-    static constexpr float fastSqrt(float x)
-    {
-        return fastInvSqrt(x) * x;
     }
 
     float _d0 = 0;
