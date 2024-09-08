@@ -4,6 +4,8 @@ This is firmware for a polyphonic octave shift effect pedal. It runs on an
 [Electro-Smith Daisy Seed](https://www.electro-smith.com/daisy/daisy) mounted
 in a [PedalPCB Terrarium](https://www.pedalpcb.com/product/pcb351/).
 
+[![Demo Video](http://i.ytimg.com/vi/Ddwj5CVlP7g/hqdefault.jpg)](https://youtu.be/Ddwj5CVlP7g)
+
 ## Controls
 
 <img align="right" width="350" src="doc/controls.svg" />
