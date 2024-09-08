@@ -10,7 +10,6 @@ set(FIRMWARE_SOURCES
     util/FastSqrt.h
     util/Led.h
     util/Led.cpp
-    util/LinearRamp.h
     util/Mapping.h
     util/Multirate.h
     util/OctaveGenerator.h
