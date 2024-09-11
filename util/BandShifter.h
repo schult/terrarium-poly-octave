@@ -4,6 +4,9 @@
 #include <complex>
 #include <numbers>
 
+#include <dsp/fast_math_functions.h>
+#include <q/detail/fast_math.hpp>
+
 #include <util/FastSqrt.h>
 
 //=============================================================================
@@ -41,24 +44,11 @@ public:
         _c2 = std::complex<float>(c2.real(), c2.imag());
     }
 
-    void update(float sample)
+    float operator()(float sample)
     {
         update_filter(sample);
-        update_up1();
-        update_down1();
-        update_down2();
-    }
-
-    float up1() const {
-        return _up1;
-    }
-
-    float down1() {
-        return _down1.real();
-    }
-
-    float down2() const {
-        return _down2;
+        update_shifted();
+        return _shifted;
     }
 
 private:
@@ -73,70 +63,34 @@ private:
 
     void update_filter(float sample)
     {
-        const auto prev_y = _y;
+        const auto prev_imag_sign = std::signbit(_y.imag());
+
         _y = _s2 + _d0*sample;
         _s2 = _s1 + _d1*sample - _c1*_y;
         _s1 = _d2*sample - _c2*_y;
 
-        if ((_y.real() < 0) &&
-            (std::signbit(_y.imag()) != std::signbit(prev_y.imag())))
+        if ((_y.real() < 0) && (std::signbit(_y.imag()) != prev_imag_sign))
         {
-            _down1_sign = -_down1_sign;
+            _phase_offset += _offset_step;
+            while (_phase_offset > pi2)
+            {
+                _phase_offset -= pi2;
+            }
         }
     }
 
-    // Octave shifts are performed via phase scaling described in "Real-Time
-    // Polyphonic Octave Doubling for the Guitar" by Etienne Thuillier
-    // https://core.ac.uk/download/pdf/80719011.pdf
-    //
-    // in = complex input signal
-    // out = scaled complex output signal
-    // g = scaling factor
-    //
-    // out = in * (in / |in|)^(g - 1)
-    //
-    // Note that for octave down (g = 1/2), it is necessary to detect phase
-    // transitions in order to set the sign of the output signal.
-
-    void update_up1()
+    void update_shifted()
     {
-        const auto a = _y.real();
-        const auto b = _y.imag();
-        _up1 = (a*a - b*b) * fastInvSqrt(a*a + b*b);
+        const auto mag = fastSqrt(std::norm(_y));
+        float phase_in;
+        arm_atan2_f32(_y.imag(), _y.real(), &phase_in);
+        const auto phase_out = _scale * phase_in + _phase_offset;
+        _shifted = mag * fastersinfull(phase_out);
     }
 
-    void update_down1()
-    {
-        const auto a = _y.real();
-        const auto b = _y.imag();
-        const auto b_sign = (b < 0) ? -1.0f : 1.0f;
-
-        const auto x = 0.5f * a * fastInvSqrt(a*a + b*b);
-        const auto c = fastSqrt(0.5f + x);
-        const auto d = b_sign * fastSqrt(0.5f - x);
-
-        const auto prev_down1 = _down1;
-        _down1 = _down1_sign * std::complex<float>((a*c + b*d), (b*c - a*d));
-
-        if ((_down1.real() < 0) &&
-            (std::signbit(_down1.imag()) != std::signbit(prev_down1.imag())))
-        {
-            _down2_sign = -_down2_sign;
-        }
-    }
-
-    void update_down2()
-    {
-        const auto a = _down1.real();
-        const auto b = _down1.imag();
-        const auto b_sign = (b < 0) ? -1.0f : 1.0f;
-
-        const auto x = 0.5f * a * fastInvSqrt(a*a + b*b);
-        const auto c = fastSqrt(0.5f + x);
-        const auto d = b_sign * fastSqrt(0.5f - x);
-
-        _down2 = _down2_sign * (a*c + b*d);
-    }
+    static constexpr float pi2 = 2.0f * std::numbers::pi_v<float>;
+    static constexpr float _scale = 0.749153538438341f; // TODO: Make adjustable
+    static constexpr float _offset_step = pi2 * _scale;
 
     float _d0 = 0;
     std::complex<float> _d1;
@@ -148,10 +102,6 @@ private:
     std::complex<float> _s2;
 
     std::complex<float> _y;
-    float _up1 = 0;
-    std::complex<float> _down1;
-    float _down2 = 0;
-
-    float _down1_sign = 1;
-    float _down2_sign = 1;
+    float _phase_offset = std::numbers::pi_v<float> / 2;
+    float _shifted = 0;
 };

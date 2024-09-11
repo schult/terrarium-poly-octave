@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
-project(TerrariumPolyOctave VERSION 1.0.0)
+project(TerrariumPitchShift VERSION 1.0.0)
 
-set(FIRMWARE_NAME TerrariumPolyOctave)
+set(FIRMWARE_NAME TerrariumPitchShift)
 set(FIRMWARE_SOURCES
     main.cpp
     syscalls.c
@@ -12,12 +12,15 @@ set(FIRMWARE_SOURCES
     util/Led.cpp
     util/Mapping.h
     util/Multirate.h
-    util/OctaveGenerator.h
+    util/PitchShifter.h
     util/Terrarium.h
     util/Terrarium.cpp
 )
 set(LIBDAISY_DIR ${CMAKE_SOURCE_DIR}/lib/libDaisy)
 include(${LIBDAISY_DIR}/cmake/default_build.cmake)
+
+set(CMSISCORE "${CMAKE_SOURCE_DIR}/lib/libDaisy/Drivers/CMSIS_5/CMSIS/Core")
+add_subdirectory(${LIBDAISY_DIR}/Drivers/CMSIS-DSP)
 
 option(Q_BUILD_EXAMPLES "build Q library examples" OFF)
 option(Q_BUILD_TEST "build Q library tests" OFF)
@@ -27,7 +30,7 @@ add_subdirectory(lib/q)
 add_subdirectory(lib/gcem)
 
 target_include_directories(${FIRMWARE_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(${FIRMWARE_NAME} PUBLIC libq gcem)
+target_link_libraries(${FIRMWARE_NAME} PUBLIC CMSISDSP libq gcem)
 
 set_target_properties(${FIRMWARE_NAME} PROPERTIES
     CXX_STANDARD 20

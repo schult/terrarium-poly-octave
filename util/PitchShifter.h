@@ -5,10 +5,10 @@
 #include <gcem.hpp>
 
 //=============================================================================
-class OctaveGenerator
+class PitchShifter
 {
 public:
-    OctaveGenerator(float sample_rate)
+    PitchShifter(float sample_rate)
     {
         for (int i = 0; i < 80; ++i)
         {
@@ -18,34 +18,14 @@ public:
         }
     }
 
-    void update(float sample)
+    float operator()(float sample)
     {
-        _up1 = 0;
-        _down1 = 0;
-        _down2 = 0;
-
+        float shifted = 0;
         for (auto& shifter : _shifters)
         {
-            shifter.update(sample);
-            _up1 += shifter.up1();
-            _down1 += shifter.down1();
-            _down2 += shifter.down2();
+            shifted += shifter(sample);
         }
-    }
-
-    float up1() const
-    {
-        return _up1;
-    }
-
-    float down1() const
-    {
-        return _down1;
-    }
-
-    float down2() const
-    {
-        return _down2;
+        return shifted;
     }
 
 private:
@@ -65,8 +45,4 @@ private:
     }
 
     std::vector<BandShifter> _shifters;
-
-    float _up1 = 0;
-    float _down1 = 0;
-    float _down2 = 0;
 };
