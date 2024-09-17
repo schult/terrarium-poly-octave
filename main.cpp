@@ -31,6 +31,8 @@ void processAudioBlock(
 
     const auto& s = interface_state;
 
+    shift.setScale(s.pitchScale());
+
     for (size_t i = 0; i <= (size - resample_factor); i += resample_factor)
     {
         std::span<const float, resample_factor> in_chunk(
@@ -63,6 +65,7 @@ int main()
     assert(terrarium.seed.AudioBlockSize() % resample_factor == 0);
 
     auto& knob_dry = terrarium.knobs[0];
+    auto& knob_pitch = terrarium.knobs[1];
     auto& knob_shifted = terrarium.knobs[2];
 
     auto& stomp_bypass = terrarium.stomps[0];
@@ -74,6 +77,7 @@ int main()
 
     terrarium.Loop(100, [&](){
         interface_state.setDryRatio(knob_dry.Process());
+        interface_state.setPitchRatio(knob_pitch.Process());
         interface_state.setShiftedRatio(knob_shifted.Process());
 
         if (stomp_bypass.RisingEdge())

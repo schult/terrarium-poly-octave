@@ -18,6 +18,14 @@ public:
         }
     }
 
+    void setScale(float scale)
+    {
+        for (auto& shifter : _shifters)
+        {
+            shifter.setScale(scale);
+        }
+    }
+
     float operator()(float sample)
     {
         float shifted = 0;
@@ -31,7 +39,7 @@ public:
 private:
     static constexpr float centerFreq(const int n)
     {
-        return 480 * gcem::pow(2.0f, (0.027f * n)) - 420;
+        return 480 * gcem::pow(2.0f, (n / 20.0f)) - 420;
     }
 
     static constexpr float bandwidth(const int n)

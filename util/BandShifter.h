@@ -44,6 +44,12 @@ public:
         _c2 = std::complex<float>(c2.real(), c2.imag());
     }
 
+    void setScale(float scale)
+    {
+        _scale = scale;
+        _offset_step = pi2 * _scale;
+    }
+
     float operator()(float sample)
     {
         update_filter(sample);
@@ -89,8 +95,8 @@ private:
     }
 
     static constexpr float pi2 = 2.0f * std::numbers::pi_v<float>;
-    static constexpr float _scale = 0.749153538438341f; // TODO: Make adjustable
-    static constexpr float _offset_step = pi2 * _scale;
+    float _scale = 0.749153538438341f;
+    float _offset_step = pi2 * _scale;
 
     float _d0 = 0;
     std::complex<float> _d1;
