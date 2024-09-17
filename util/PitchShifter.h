@@ -10,7 +10,7 @@ class PitchShifter
 public:
     PitchShifter(float sample_rate)
     {
-        for (int i = 0; i < 120; ++i)
+        for (int i = 0; i < 80; ++i)
         {
             const auto center = centerFreq(i);
             const auto bw = bandwidth(i);
@@ -39,7 +39,7 @@ public:
 private:
     static constexpr float centerFreq(const int n)
     {
-        return 480 * gcem::pow(2.0f, (n / 29.0f)) - 420;
+        return 480 * gcem::pow(2.0f, (n / 17.0f)) - 420;
     }
 
     static constexpr float bandwidth(const int n)
