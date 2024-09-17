@@ -10,7 +10,7 @@ class PitchShifter
 public:
     PitchShifter(float sample_rate)
     {
-        for (int i = 0; i < 110; ++i)
+        for (int i = 0; i < 115; ++i)
         {
             const auto center = centerFreq(i);
             const auto bw = bandwidth(i);

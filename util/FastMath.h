@@ -18,25 +18,16 @@ static constexpr float fastSqrt(float x)
     return fastInvSqrt(x) * x;
 }
 
-// https://www.dsprelated.com/showarticle/1052.php
+// gist.github.com/volkansalma/2972237#gistcomment-3872525
 static constexpr float fastAtan2(float y, float x)
 {
     constexpr float pi = std::numbers::pi_v<float>;
     constexpr float half_pi = pi / 2.0f;
-    constexpr float c = pi / 4.0f;
+    constexpr float quarter_pi = pi / 4.0f;
 
-    if (x == 0) return (y > 0) ? half_pi : -half_pi;
-
-    const float ay = std::abs(y);
+    const float ay = std::abs(y) + std::numeric_limits<float>::epsilon();
     const float ax = std::abs(x);
-    const bool invert = ay > ax;
-    const float z = invert ? ax/ay : ay/ax;
-
-    // float th = (-0.19194795f * z * z + 0.97239411f) * z;
-    float th = c * z;
-
-    if (invert) { th = half_pi - th; }
-    if (x < 0) { th = pi - th; }
-    if (y < 0) { th = -th; }
-    return th;
+    const float r = (x - std::copysign(ay, x)) / (ay + ax);
+    const float th = half_pi - std::copysign(quarter_pi, x) - (quarter_pi * r);
+    return std::copysign(th, y);
 }
