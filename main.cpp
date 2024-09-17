@@ -26,8 +26,6 @@ void processAudioBlock(
     static Decimator decimate;
     static Interpolator interpolate;
     static PitchShifter shift(sample_rate / resample_factor);
-    static q::highshelf eq1(-11, 140_Hz, sample_rate);
-    static q::lowshelf eq2(5, 160_Hz, sample_rate);
 
     const auto& s = interface_state;
 
@@ -45,7 +43,7 @@ void processAudioBlock(
         auto out_chunk = interpolate(shifted_mix);
         for (size_t j = 0; j < out_chunk.size(); ++j)
         {
-            float mix = eq2(eq1(out_chunk[j]));
+            float mix = out_chunk[j];
 
             const auto dry_signal = in[0][i+j];
             mix += s.dryLevel() * dry_signal;
