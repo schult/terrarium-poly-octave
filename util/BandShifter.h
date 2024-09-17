@@ -4,10 +4,9 @@
 #include <complex>
 #include <numbers>
 
-#include <dsp/fast_math_functions.h>
 #include <q/detail/fast_math.hpp>
 
-#include <util/FastSqrt.h>
+#include <util/FastMath.h>
 
 //=============================================================================
 class BandShifter
@@ -88,8 +87,7 @@ private:
     void update_shifted()
     {
         const auto mag = fastSqrt(std::norm(_y));
-        float phase_in;
-        arm_atan2_f32(_y.imag(), _y.real(), &phase_in);
+        const auto phase_in = fastAtan2(_y.imag(), _y.real());
         const auto phase_out = _scale * phase_in + _phase_offset;
         _shifted = mag * fastersinfull(phase_out);
     }

@@ -7,7 +7,7 @@ set(FIRMWARE_SOURCES
     syscalls.c
     util/BandShifter.h
     util/EffectState.h
-    util/FastSqrt.h
+    util/FastMath.h
     util/Led.h
     util/Led.cpp
     util/Mapping.h
@@ -19,9 +19,6 @@ set(FIRMWARE_SOURCES
 set(LIBDAISY_DIR ${CMAKE_SOURCE_DIR}/lib/libDaisy)
 include(${LIBDAISY_DIR}/cmake/default_build.cmake)
 
-set(CMSISCORE "${CMAKE_SOURCE_DIR}/lib/libDaisy/Drivers/CMSIS_5/CMSIS/Core")
-add_subdirectory(${LIBDAISY_DIR}/Drivers/CMSIS-DSP)
-
 option(Q_BUILD_EXAMPLES "build Q library examples" OFF)
 option(Q_BUILD_TEST "build Q library tests" OFF)
 option(Q_BUILD_IO "build Q IO library" OFF)
@@ -30,7 +27,7 @@ add_subdirectory(lib/q)
 add_subdirectory(lib/gcem)
 
 target_include_directories(${FIRMWARE_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(${FIRMWARE_NAME} PUBLIC CMSISDSP libq gcem)
+target_link_libraries(${FIRMWARE_NAME} PUBLIC libq gcem)
 
 set_target_properties(${FIRMWARE_NAME} PROPERTIES
     CXX_STANDARD 20
