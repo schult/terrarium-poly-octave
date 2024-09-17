@@ -5,7 +5,7 @@
 
 #include <q/utility/ring_buffer.hpp>
 
-constexpr size_t resample_factor = 6;
+constexpr size_t resample_factor = 3;
 
 //=============================================================================
 class Decimator
@@ -16,14 +16,7 @@ public:
         buffer1.push(s[0]);
         buffer1.push(s[1]);
         buffer1.push(s[2]);
-        buffer2.push(filter1());
-
-        buffer1.push(s[3]);
-        buffer1.push(s[4]);
-        buffer1.push(s[5]);
-        buffer2.push(filter1());
-
-        return filter2();
+        return filter1();
     }
 
 private:
@@ -46,29 +39,11 @@ private:
             0.14270010010002276f * buffer1[offset1+10];
     }
 
-    float filter2()
-    {
-        // Half-band filter
-        // 16000 Hz sample rate
-        // 0-1800 Hz pass band
-        return
-            -0.00299995f * (buffer2[offset2+0] + buffer2[offset2+14]) +
-            0.01858487f * (buffer2[offset2+2] + buffer2[offset2+12]) +
-            -0.06984829f * (buffer2[offset2+4] + buffer2[offset2+10]) +
-            0.30421664f * (buffer2[offset2+6] + buffer2[offset2+8]) +
-            0.5f * buffer2[offset2+7];
-    }
-
     static constexpr std::size_t bsize1 = 32;
     static constexpr std::size_t fsize1 = 21;
     static constexpr std::size_t offset1 = bsize1 - fsize1;
 
-    static constexpr std::size_t bsize2 = 16;
-    static constexpr std::size_t fsize2 = 15;
-    static constexpr std::size_t offset2 = bsize2 - fsize2;
-
     cycfi::q::ring_buffer<float> buffer1{bsize1};
-    cycfi::q::ring_buffer<float> buffer2{bsize2};
 };
 
 
@@ -80,63 +55,15 @@ public:
     {
         std::array<float, resample_factor> output;
 
-        buffer1.push(s);
-
-        buffer2.push(filter1a());
+        buffer2.push(s);
         output[0] = filter2a();
         output[1] = filter2b();
         output[2] = filter2c();
-
-        buffer2.push(filter1b());
-        output[3] = filter2a();
-        output[4] = filter2b();
-        output[5] = filter2c();
 
         return output;
     }
 
 private:
-    // Filter 1
-    // 16000 Hz sample rate
-    // 0-3600 Hz pass band (3 dB ripple)
-    // 4400-8000 Hz stop band (-80 dB)
-    // Gain=2 in passband
-
-    float filter1a()
-    {
-        return
-            -0.0028536199247471473f * (buffer1[offset1+0] + buffer1[offset1+24]) +
-            -0.040326725115203695f * (buffer1[offset1+1] + buffer1[offset1+23]) +
-            -0.036134596458820015f * (buffer1[offset1+2] + buffer1[offset1+22]) +
-            0.033522051189265496f * (buffer1[offset1+3] + buffer1[offset1+21]) +
-            -0.031442224275585025f * (buffer1[offset1+4] + buffer1[offset1+20]) +
-            0.03258337681750486f * (buffer1[offset1+5] + buffer1[offset1+19]) +
-            -0.03538414864961937f * (buffer1[offset1+6] + buffer1[offset1+18]) +
-            0.038811868988079715f * (buffer1[offset1+7] + buffer1[offset1+17]) +
-            -0.042204493894155204f * (buffer1[offset1+8] + buffer1[offset1+16]) +
-            0.045128824129776035f * (buffer1[offset1+9] + buffer1[offset1+15]) +
-            -0.04736995557907843f * (buffer1[offset1+10] + buffer1[offset1+14]) +
-            0.048831901671617876f * (buffer1[offset1+11] + buffer1[offset1+13]) +
-            0.9507771467941135f * buffer1[offset1+12];
-    }
-
-    float filter1b()
-    {
-        return
-            -0.015961858776449508f * (buffer1[offset1+0] + buffer1[offset1+23]) +
-            -0.056128740058266235f * (buffer1[offset1+1] + buffer1[offset1+22]) +
-            0.011026026040094625f * (buffer1[offset1+2] + buffer1[offset1+21]) +
-            0.003198795994721635f * (buffer1[offset1+3] + buffer1[offset1+20]) +
-            -0.01108582057161854f * (buffer1[offset1+4] + buffer1[offset1+19]) +
-            0.01951384497860086f * (buffer1[offset1+5] + buffer1[offset1+18]) +
-            -0.030860282826182514f * (buffer1[offset1+6] + buffer1[offset1+17]) +
-            0.04707993944078406f * (buffer1[offset1+7] + buffer1[offset1+16]) +
-            -0.07155908583004919f * (buffer1[offset1+8] + buffer1[offset1+15]) +
-            0.1129220770668398f * (buffer1[offset1+9] + buffer1[offset1+14]) +
-            -0.2033122562119347f * (buffer1[offset1+10] + buffer1[offset1+13]) +
-            0.6336728217960803f * (buffer1[offset1+11] + buffer1[offset1+12]);
-    }
-
     // Filter 2
     // 48000 Hz sample rate
     // 0-3600 Hz pass band (3 dB ripple)
@@ -186,14 +113,9 @@ private:
             0.00036440608905813593f * buffer2[offset2+10];
     }
 
-    static constexpr std::size_t bsize1 = 32;
-    static constexpr std::size_t fsize1 = 25;
-    static constexpr std::size_t offset1 = bsize1 - fsize1;
-
     static constexpr std::size_t bsize2 = 16;
     static constexpr std::size_t fsize2 = 11;
     static constexpr std::size_t offset2 = bsize2 - fsize2;
 
-    cycfi::q::ring_buffer<float> buffer1{bsize1};
     cycfi::q::ring_buffer<float> buffer2{bsize2};
 };
