@@ -14,7 +14,8 @@ public:
 
     float pitchScale() const
     {
-        return 1 / std::pow(2.0f, 1.0 - _pitch_ratio);
+        const auto r = std::min(1.0f, _pitch_ratio * 1.05f);
+        return 1 / std::pow(2.0f, 1.0 - r);
     }
 
 private:
