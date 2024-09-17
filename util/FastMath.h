@@ -23,6 +23,7 @@ static constexpr float fastAtan2(float y, float x)
 {
     constexpr float pi = std::numbers::pi_v<float>;
     constexpr float half_pi = pi / 2.0f;
+    constexpr float c = pi / 4.0f;
 
     if (x == 0) return (y > 0) ? half_pi : -half_pi;
 
@@ -31,7 +32,8 @@ static constexpr float fastAtan2(float y, float x)
     const bool invert = ay > ax;
     const float z = invert ? ax/ay : ay/ax;
 
-    float th = (-0.19194795f * z * z + 0.97239411f) * z;
+    // float th = (-0.19194795f * z * z + 0.97239411f) * z;
+    float th = c * z;
 
     if (invert) { th = half_pi - th; }
     if (x < 0) { th = pi - th; }
