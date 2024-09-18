@@ -4,8 +4,6 @@
 #include <complex>
 #include <numbers>
 
-#include <q/detail/fast_math.hpp>
-
 #include <util/FastMath.h>
 
 //=============================================================================
@@ -16,17 +14,17 @@ public:
 
     BandShifter(float center, float sample_rate, float bw)
     {
-        constexpr auto pi = std::numbers::pi_v<double>;
+        constexpr auto pi_d = std::numbers::pi_v<double>;
         constexpr auto j = std::complex<double>(0, 1);
 
-        const auto w0 = pi * bw / sample_rate;
+        const auto w0 = pi_d * bw / sample_rate;
         const auto cos_w0 = std::cos(w0);
         const auto sin_w0 = std::sin(w0);
         const auto sqrt_2 = std::sqrt(2.0);
         const auto a0 = (1 + sqrt_2 * sin_w0 / 2);
         const auto g = (1 - cos_w0) / (2 * a0);
 
-        const auto w1 = 2 * pi * center / sample_rate;
+        const auto w1 = 2 * pi_d * center / sample_rate;
         const auto e1 = std::exp(j * w1);
         const auto e2 = std::exp(j * w1 * 2.0);
 
@@ -57,6 +55,26 @@ public:
     }
 
 private:
+    // gist.github.com/volkansalma/2972237#gistcomment-3872525
+    static constexpr float fastAtan2(float y, float x)
+    {
+        constexpr float half_pi = pi / 2.0f;
+        constexpr float quarter_pi = pi / 4.0f;
+
+        const float ay = std::abs(y) + std::numeric_limits<float>::epsilon();
+        const float ax = std::abs(x);
+        const float r = (x - std::copysign(ay, x)) / (ay + ax);
+        const float th = half_pi - std::copysign(quarter_pi, x) - (quarter_pi * r);
+        return std::copysign(th, y);
+    }
+
+    // bmtechjournal.wordpress.com/2020/05/27/super-fast-quadratic-sinusoid-approximation/
+    static constexpr float fastSine(float x)
+    {
+        const auto z = 2 * (x - std::floor(x) - 0.5f);
+        return 4 * z * (1 - std::abs(z));
+    }
+
     // Prototype filter is LPF from "Cookbook formulae for audio EQ biquad
     // filter coefficients", a.k.a. "Audio EQ Cookbook",
     // by Robert Bristow-Johnson
@@ -65,7 +83,6 @@ private:
     // Transformed as described in Section 3.1 of "Complex Band-Pass Filters
     // for Analytic Signal Generation and Their Application" by Andrew J. Noga
     // https://apps.dtic.mil/sti/tr/pdf/ADA395963.pdf
-
     void update_filter(float sample)
     {
         const auto prev_imag_sign = std::signbit(_y.imag());
@@ -84,15 +101,23 @@ private:
         }
     }
 
+    // Pitch shifts are performed via phase scaling, described in "Real-Time
+    // Polyphonic Octave Doubling for the Guitar" by Etienne Thuillier
+    // https://core.ac.uk/download/pdf/80719011.pdf
+    //
+    // In order to support an arbitrary scale factor, we have to actually
+    // determine the phase and scale it, rather than using the shortcut
+    // identified in the paper.
     void update_shifted()
     {
         const auto mag = fastSqrt(std::norm(_y));
         const auto phase_in = fastAtan2(_y.imag(), _y.real());
         const auto phase_out = _scale * phase_in + _phase_offset;
-        _shifted = mag * fastersinfull(phase_out);
+        _shifted = mag * fastSine(phase_out);
     }
 
-    static constexpr float pi2 = 2.0f * std::numbers::pi_v<float>;
+    static constexpr float pi = 0.5f; // To be compatible with fastSine
+    static constexpr float pi2 = 2 * pi;
     float _scale = 0.749153538438341f;
     float _offset_step = pi2 * _scale;
 
