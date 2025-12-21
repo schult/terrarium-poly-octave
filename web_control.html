@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terrarium Poly Octave Controller</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #222; color: #eee; }
+        .control-group { margin-bottom: 20px; border: 1px solid #444; padding: 10px; border-radius: 5px; }
+        label { display: block; margin-bottom: 5px; }
+        input[type=range] { width: 100%; }
+        button { padding: 10px 20px; background: #444; color: white; border: none; cursor: pointer; }
+        button.active { background: #00aa00; }
+        #status { margin-top: 20px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <h1>Terrarium Controller</h1>
+    <div id="status">Not Connected</div>
+    <button id="connectBtn">Connect Serial</button>
+
+    <div class="control-group">
+        <h3>Levels</h3>
+        <label>Dry <input type="range" min="0" max="1" step="0.01" value="0.5" oninput="sendKnob(0, this.value)"></label>
+        <label>Down -2 <input type="range" min="0" max="1" step="0.01" value="0.5" oninput="sendKnob(3, this.value)"></label>
+        <label>Down -1 <input type="range" min="0" max="1" step="0.01" value="0.5" oninput="sendKnob(4, this.value)"></label>
+        <label>Up +1 <input type="range" min="0" max="1" step="0.01" value="0.5" oninput="sendKnob(5, this.value)"></label>
+    </div>
+
+    <div class="control-group">
+        <h3>Footswitches</h3>
+        <button id="bypassBtn" onmousedown="sendStomp(0, 1)" onmouseup="sendStomp(0, 0)">Bypass / Enable</button>
+    </div>
+
+    <script>
+        let port;
+        let writer;
+
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                const textEncoder = new TextEncoderStream();
+                const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+                writer = textEncoder.writable.getWriter();
+                document.getElementById('status').innerText = "Connected";
+                document.getElementById('connectBtn').style.display = 'none';
+            } catch (err) {
+                console.error(err);
+                document.getElementById('status').innerText = "Error: " + err;
+            }
+        });
+
+        async function sendCommand(cmd) {
+            if (!writer) return;
+            await writer.write(cmd + "\n");
+            console.log("Sent:", cmd);
+        }
+
+        function sendKnob(index, value) {
+            sendCommand(`knob ${index} ${value}`);
+        }
+
+        function sendStomp(index, value) {
+            sendCommand(`stomp ${index} ${value}`);
+            if (index === 0) {
+                document.getElementById('bypassBtn').classList.toggle('active', value > 0.5);
+            }
+        }
+    </script>
+</body>
+</html>
