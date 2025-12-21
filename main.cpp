@@ -1,12 +1,16 @@
 #include <cassert>
+#include <string>
+#include <vector>
+
+// Include our mocked framework
+#include <hw_config.h>
+#include <util/Terrarium.h>
 
 #include <q/support/literals.hpp>
 #include <q/fx/biquad.hpp>
-
 #include <util/EffectState.h>
 #include <util/Multirate.h>
 #include <util/OctaveGenerator.h>
-#include <util/Terrarium.h>
 
 namespace q = cycfi::q;
 using namespace q::literals;
@@ -14,6 +18,20 @@ using namespace q::literals;
 Terrarium terrarium;
 EffectState interface_state;
 bool enable_effect = false;
+
+// STM32 specific: Buffer for USB CDC input
+char usb_rx_buffer[64];
+volatile bool usb_cmd_received = false;
+
+// This function would be called by the USB CDC middleware when data arrives
+extern "C" void USB_CDC_RxHandler(uint8_t* Buf, uint32_t Len)
+{
+    if (Len < 64) {
+        memcpy(usb_rx_buffer, Buf, Len);
+        usb_rx_buffer[Len] = 0; // Null terminate
+        usb_cmd_received = true;
+    }
+}
 
 //=============================================================================
 void processAudioBlock(
@@ -60,6 +78,14 @@ void processAudioBlock(
 //=============================================================================
 int main()
 {
+    // Hardware Initialization (HAL, Clock, etc.)
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_DMA_Init();
+    MX_I2S2_Init();
+    MX_USB_DEVICE_Init(); // Placeholder
+
     terrarium.Init(true);
     // These settings are expected by Decimator/Interpolator
     assert(terrarium.seed.AudioSampleRate() == 48000);
@@ -71,13 +97,19 @@ int main()
     auto& knob_up1 = terrarium.knobs[5];
 
     auto& stomp_bypass = terrarium.stomps[0];
-
     auto& led_enable = terrarium.leds[0];
-
 
     terrarium.seed.StartAudio(processAudioBlock);
 
+    // Main Loop
     terrarium.Loop(100, [&](){
+
+        // Check for USB commands to update virtual knobs
+        if (usb_cmd_received) {
+            terrarium.ProcessCommand(std::string(usb_rx_buffer));
+            usb_cmd_received = false;
+        }
+
         interface_state.setDryRatio(knob_dry.Process());
         interface_state.setUp1Ratio(knob_up1.Process());
         interface_state.setDown1Ratio(knob_down1.Process());
