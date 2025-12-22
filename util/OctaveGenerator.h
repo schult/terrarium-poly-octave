@@ -1,8 +1,8 @@
 #pragma once
 
 #include <util/BandShifter.h>
+
 #include <gcem.hpp>
-#include <array>
 
 //=============================================================================
 class OctaveGenerator
@@ -14,9 +14,7 @@ public:
         {
             const auto center = centerFreq(i);
             const auto bw = bandwidth(i);
-            // In-place construction using placement new or just assignment since std::array elements are default constructed.
-            // BandShifter has a default constructor, so we can just assign or re-construct.
-            _shifters[i] = BandShifter(center, sample_rate, bw);
+            _shifters.emplace_back(center, sample_rate, bw);
         }
     }
 
@@ -66,8 +64,7 @@ private:
         return 2.0f * (a*b) / (a+b);
     }
 
-    // Replaced std::vector with std::array for static allocation
-    std::array<BandShifter, 80> _shifters;
+    std::vector<BandShifter> _shifters;
 
     float _up1 = 0;
     float _down1 = 0;

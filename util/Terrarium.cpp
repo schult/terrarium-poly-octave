@@ -1,122 +1,107 @@
-#include <util/Terrarium.h>
-#include <hw_config.h>
-#include <cmath>
-#include <cstring>
-#include <vector>
-#include <sstream>
+#include "Terrarium.h"
 
-extern I2S_HandleTypeDef hi2s2;
-extern int16_t txBuf[];
-extern int16_t rxBuf[];
-
-// Global pointer to the user's audio callback
-static void (*UserAudioCallback)(float**, float**, size_t) = nullptr;
-
-// Interleaved buffers for the callback
-static float in_interleaved[AUDIO_BLOCK_SIZE * 2];
-static float out_interleaved[AUDIO_BLOCK_SIZE * 2];
-
-// Pointers for the callback (De-interleaved format expected by Daisy/Terrarium logic)
-static float in_ch0[AUDIO_BLOCK_SIZE];
-static float in_ch1[AUDIO_BLOCK_SIZE];
-static float out_ch0[AUDIO_BLOCK_SIZE];
-static float out_ch1[AUDIO_BLOCK_SIZE];
-static float* in_ptr[2] = {in_ch0, in_ch1};
-static float* out_ptr[2] = {out_ch0, out_ch1};
-
-//-----------------------------------------------------------------------------
-// The actual DMA Half/Full Transfer callbacks call this
-void Audio_Update(int16_t* rx, int16_t* tx, size_t size_half_words)
-{
-    if (!UserAudioCallback) return;
-
-    size_t num_samples = size_half_words / 2; // Stereo samples
-
-    // Convert Int16 to Float and De-interleave
-    for (size_t i = 0; i < num_samples; ++i)
-    {
-        in_ch0[i] = (float)rx[i*2] / 32768.0f;
-        in_ch1[i] = (float)rx[i*2+1] / 32768.0f;
-    }
-
-    // Call the processing logic
-    UserAudioCallback(in_ptr, out_ptr, num_samples);
-
-    // Interleave and Convert Float to Int16
-    for (size_t i = 0; i < num_samples; ++i)
-    {
-        // Clipping
-        float l = out_ch0[i];
-        float r = out_ch1[i];
-        if(l > 1.0f) l = 1.0f; else if(l < -1.0f) l = -1.0f;
-        if(r > 1.0f) r = 1.0f; else if(r < -1.0f) r = -1.0f;
-
-        tx[i*2]   = (int16_t)(l * 32767.0f);
-        tx[i*2+1] = (int16_t)(r * 32767.0f);
-    }
-}
-
-// STM32 HAL Callbacks
-extern "C" {
-    // With HAL_I2SEx_TransmitReceive_DMA, the callback is usually TxCpltCallback
-    // when the transaction is complete (RX and TX move together).
-
-    void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {
-        if (hi2s->Instance == SPI2) {
-            Audio_Update(&rxBuf[0], &txBuf[0], DMA_BUFFER_SIZE);
-        }
-    }
-    void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
-        if (hi2s->Instance == SPI2) {
-            Audio_Update(&rxBuf[DMA_BUFFER_SIZE], &txBuf[DMA_BUFFER_SIZE], DMA_BUFFER_SIZE);
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------
 void Terrarium::Init(bool boost)
 {
-    (void)boost;
-
-    // Set default values
-    for(auto& k : knobs) k.Set(0.5f);
-    for(auto& s : toggles) s.Set(false);
-    for(auto& s : stomps) s.Set(false);
-}
-
-void Terrarium::Seed::StartAudio(void (*cb)(float**, float**, size_t))
-{
-    UserAudioCallback = cb;
-
-    // Start DMA using the Extended Full Duplex function
-    // This allows simultaneous TX and RX on the I2S bus.
-    HAL_I2SEx_TransmitReceive_DMA(&hi2s2, (uint16_t*)txBuf, (uint16_t*)rxBuf, DMA_BUFFER_SIZE * 2);
+    seed.Init(boost);
+    InitKnobs();
+    InitToggles();
+    InitStomps();
+    InitLeds();
 }
 
 void Terrarium::Loop(float frequency, std::function<void()> callback)
 {
-    uint32_t period_ms = (uint32_t)(1000.0f / frequency);
-    while(1)
+    for (auto& knob : knobs)
     {
+        knob.SetSampleRate(frequency);
+    }
+
+    const auto interval =
+        static_cast<uint32_t>(daisy::System::GetTickFreq() / frequency);
+    auto wait_begin = daisy::System::GetTick();
+    while (true)
+    {
+        for (auto& toggle : toggles)
+        {
+            toggle.Debounce();
+        }
+
+        for (auto& stomp : stomps)
+        {
+            stomp.Debounce();
+        }
+
         callback();
-        HAL_Delay(period_ms);
+
+        while ((daisy::System::GetTick() - wait_begin) < interval) {}
+        wait_begin += interval;
     }
 }
 
-void Terrarium::ProcessCommand(const std::string& cmd)
+void Terrarium::InitKnobs()
 {
-    std::stringstream ss(cmd);
-    std::string type;
-    int index;
-    float value;
+    constexpr std::array<daisy::Pin, knob_count> knob_pins{
+        daisy::seed::A1,
+        daisy::seed::A2,
+        daisy::seed::A3,
+        daisy::seed::A4,
+        daisy::seed::A5,
+        daisy::seed::A6,
+    };
 
-    ss >> type >> index >> value;
+    std::array<daisy::AdcChannelConfig, knob_count> adc_configs;
+    for (int i = 0; i < knob_count; ++i)
+    {
+        adc_configs[i].InitSingle(knob_pins[i]);
+    }
 
-    if (type == "knob" && index >= 0 && index < knob_count) {
-        knobs[index].Set(value);
-    } else if (type == "stomp" && index >= 0 && index < stomp_count) {
-        stomps[index].Set(value > 0.5f);
-    } else if (type == "toggle" && index >= 0 && index < toggle_count) {
-        toggles[index].Set(value > 0.5f);
+    seed.adc.Init(adc_configs.data(), adc_configs.size());
+    seed.adc.Start();
+
+    const auto poll_rate = seed.AudioCallbackRate();
+    for (int i = 0; i < knob_count; ++i)
+    {
+        knobs[i].Init(seed.adc.GetPtr(i), poll_rate);
+    }
+}
+
+void Terrarium::InitToggles()
+{
+    constexpr std::array<daisy::Pin, toggle_count> toggle_pins{
+        daisy::seed::D10,
+        daisy::seed::D9,
+        daisy::seed::D8,
+        daisy::seed::D7,
+    };
+
+    for (int i = 0; i < toggle_count; ++i)
+    {
+        toggles[i].Init(toggle_pins[i]);
+    }
+}
+
+void Terrarium::InitStomps()
+{
+    constexpr std::array<daisy::Pin, stomp_count> stomp_pins{
+        daisy::seed::D25,
+        daisy::seed::D26,
+    };
+
+    for (int i = 0; i < stomp_count; ++i)
+    {
+        stomps[i].Init(stomp_pins[i]);
+    }
+}
+
+void Terrarium::InitLeds()
+{
+    constexpr std::array<daisy::DacHandle::Channel, led_count> led_dacs{
+        daisy::DacHandle::Channel::TWO,
+        daisy::DacHandle::Channel::ONE,
+    };
+
+    for (int i = 0; i < led_count; ++i)
+    {
+        leds[i].Init(led_dacs[i]);
     }
 }
